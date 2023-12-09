@@ -43,7 +43,7 @@ defmodule Main do
 
           tokens =
             Enum.map(map, fn map_line ->
-              IO.puts("   There's a range from #{map_line.src_start} to #{map_line.src_start + map_line.len - 1} inclusive.")
+              #IO.puts("   There's a range from #{map_line.src_start} to #{map_line.src_start + map_line.len - 1} inclusive.")
               [
                 {map_line.src_start, :start},
                 {map_line.src_start + map_line.len - 1, :end}
