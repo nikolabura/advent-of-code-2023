@@ -126,32 +126,71 @@ trace_insides = fn inside_is_to_the ->
     # IO.inspect(this_pos)
     {last_pos_r, last_pos_c} = last_pos
     {this_pos_r, this_pos_c} = this_pos
-    last_travel = {-1 * (this_pos_r - last_pos_r), -1 * (this_pos_c - last_pos_c)}
+    this_symbol = grid[this_pos_r][this_pos_c]
+    came_from = {-1 * (this_pos_r - last_pos_r), -1 * (this_pos_c - last_pos_c)}
+
     paint_to_the = case inside_is_to_the do
-      :left -> case last_travel do
-        ^north -> west
-        ^south -> east
-        ^east -> north
-        ^west -> south
+      :left -> case {this_symbol, came_from} do
+        {"S", _} -> []
+
+        {"|", ^north} -> [east]
+        {"|", ^south} -> [west]
+
+        {"-", ^east} -> [south]
+        {"-", ^west} -> [north]
+
+        {"L", ^north} -> []
+        {"L", ^east} -> [south, west]
+
+        {"J", ^north} -> [south, east]
+        {"J", ^west} -> []
+
+        {"7", ^south} -> []
+        {"7", ^west} -> [north, east]
+
+        {"F", ^south} -> [north, west]
+        {"F", ^east} -> []
       end
-      :right -> case last_travel do
-        ^north -> east
-        ^south -> west
-        ^east -> south
-        ^west -> north
+
+      :right -> case {this_symbol, came_from} do
+        {"S", _} -> []
+
+        {"|", ^north} -> [west]
+        {"|", ^south} -> [east]
+
+        {"-", ^east} -> [north]
+        {"-", ^west} -> [south]
+
+        {"L", ^north} -> [south, west]
+        {"L", ^east} -> []
+
+        {"J", ^north} -> []
+        {"J", ^west} -> [south, east]
+
+        {"7", ^south} -> [north, east]
+        {"7", ^west} -> []
+
+        {"F", ^south} -> []
+        {"F", ^east} -> [north, west]
       end
     end
-    {paint_r, paint_c} = paint_to_the
-    paint_r = this_pos_r + paint_r
-    paint_c = this_pos_c + paint_c
-    can_paint_here =
-      not Enum.member?(path, {paint_r, paint_c})
-      and paint_r >= 0 and paint_r < num_rows
-      and paint_c >= 0 and paint_c < num_cols
-    painted_grid = if not can_paint_here do
+
+    painted_grid = if paint_to_the == [] do
       painted_grid
     else
-      put_in(painted_grid[paint_r][paint_c], "I")
+      Enum.reduce(paint_to_the, painted_grid, fn {paint_r, paint_c}, painted_grid ->
+        paint_r = this_pos_r + paint_r
+        paint_c = this_pos_c + paint_c
+        can_paint_here =
+          not Enum.member?(path, {paint_r, paint_c})
+          and paint_r >= 0 and paint_r < num_rows
+          and paint_c >= 0 and paint_c < num_cols
+        painted_grid = if not can_paint_here do
+          painted_grid
+        else
+          put_in(painted_grid[paint_r][paint_c], "I")
+        end
+      end)
     end
     {this_pos, painted_grid}
   end) |> elem(1)
@@ -160,7 +199,7 @@ trace_insides = fn inside_is_to_the ->
   all_coords = for r <- 0..num_rows-1 do for c <- 0..num_cols-1 do {r, c} end end |> List.flatten()
 
   # IO.puts("Expand")
-  painted = Enum.reduce(0..10, painted, fn _, painted ->
+  painted = Enum.reduce(0..3, painted, fn _, painted ->
     paint_coords = Enum.reduce(all_coords, [], fn {coord_r, coord_c}, paint_coords ->
       if painted[coord_r][coord_c] == "I" do
         paint_coords ++
@@ -190,7 +229,7 @@ trace_insides = fn inside_is_to_the ->
   end) |> List.flatten |> Enum.sum |> IO.inspect(label: "inside count")
 end
 
-trace_insides.(:left)
-# trace_insides.(:right)
+# trace_insides.(:left)
+trace_insides.(:right)
 
 IEx.pry()
