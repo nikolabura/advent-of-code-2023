@@ -229,7 +229,7 @@ trace_insides = fn inside_is_to_the ->
   end) |> List.flatten |> Enum.sum |> IO.inspect(label: "inside count")
 end
 
-# trace_insides.(:left)
+trace_insides.(:left)
 trace_insides.(:right)
 
 IEx.pry()
