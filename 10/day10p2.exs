@@ -11,11 +11,11 @@ defmodule Advent do
       for char_num <- char_ids do
         char = row[char_num]
         cond do
-          highlight == {row_num, char_num} -> IO.write(blue <> bright <> char <> reset)
+          highlight == {row_num, char_num} -> IO.write(blue() <> bright() <> char <> reset())
           is_list(highlight) and Enum.member?(highlight, {row_num, char_num}) ->
-            IO.write(blue <> char <> reset)
+            IO.write(blue() <> char <> reset())
 
-          char == "I" -> IO.write(red <> char <> reset)
+          char == "I" -> IO.write(red() <> char <> reset())
 
           is_boolean(char) ->
             IO.write(if char, do: "#", else: "-")
