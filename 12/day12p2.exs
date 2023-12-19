@@ -2,89 +2,117 @@ require IEx
 use Bitwise
 
 defmodule Rec do
-  def count_conts([first_chunk_choices | onwards_chunks], remaining_necessary) do
-    Enum.map(first_chunk_choices, fn try_choice ->
-      if List.starts_with?(remaining_necessary, try_choice) do
-        # IO.inspect(try_choice, label: "works so far")
-        # IO.inspect(remaining_necessary, label: "remaining necessary")
-        next_remaining = Enum.drop(remaining_necessary, length(try_choice))
-        valid_from_here = count_conts(onwards_chunks, next_remaining)
-        # IO.inspect(valid_from_here, label: "valid onwards")
-      else
-        0
-      end
-    end) |> Enum.sum()
+  def count_conts(run, arg = ["?" | onwards_characters], remaining_necessary) do
+    key = {run, arg, remaining_necessary}
+    case :ets.lookup(:cache, key) do
+      [{_, val}] ->
+        # IO.inspect(arg, label: "cache hit")
+        val
+      [] ->
+        dot  = count_conts(run, ["."] ++ onwards_characters, remaining_necessary)
+        hash = count_conts(run, ["#"] ++ onwards_characters, remaining_necessary)
+        out_val = dot + hash
+        :ets.insert(:cache, {key, out_val})
+        out_val
+    end
   end
 
-  def count_conts([], []) do
+  def count_conts(_run, [], []) do
     1
+  end
+
+  def count_conts(run, [], [one_cont_left]) do
+    if one_cont_left == run do
+      1
+    else
+      0
+    end
+  end
+
+  def count_conts(run, [], conts_left) do
+    # IO.inspect(conts_left, label: "conts left and no more string")
+    0
+  end
+
+  def count_conts(run, string_left, []) do
+    if Enum.all?(string_left, fn c -> c == "." or c == "?" end) do
+      1
+    else
+      # IO.inspect(string_left, label: "string left with #s")
+      0
+    end
+  end
+
+  def count_conts(run, arg = ["." | onwards_characters], remaining_necessary) do
+    key = {run, arg, remaining_necessary}
+    case :ets.lookup(:cache, key) do
+      [{_, val}] ->
+        # IO.inspect(arg, label: "cache hit")
+        val
+      [] ->
+        # IO.puts("#{run}  .#{Enum.join(onwards_characters)}  #{inspect(Enum.take(remaining_necessary, 3))}")
+        out = if run == 0 do
+          count_conts(0, onwards_characters, remaining_necessary)
+        else
+          # we just finished a run of several #s
+          [should_have_filled | onwards_conts] = remaining_necessary
+          if should_have_filled == run do
+            count_conts(0, onwards_characters, onwards_conts)
+          else
+            0
+          end
+        end
+        :ets.insert(:cache, {key, out})
+        out
+    end
+  end
+
+  def count_conts(run, arg = ["#" | onwards_characters], remaining_necessary) do
+    key = {run, arg, remaining_necessary}
+    case :ets.lookup(:cache, key) do
+      [{_, val}] ->
+        # IO.inspect(arg, label: "cache hit")
+        val
+      [] ->
+        [dont_fill_more_than | _] = remaining_necessary
+        out = if run > dont_fill_more_than do
+          0
+        else
+          count_conts(run + 1, onwards_characters, remaining_necessary)
+        end
+        :ets.insert(:cache, {key, out})
+        out
+    end
   end
 end
 
 {:ok, contents} = File.read("input.txt")
 
+:ets.new(:cache, [:named_table])
+
 vals =
   contents
   |> String.split("\n", trim: true)
-  # |> Enum.take(2)
-  |> Enum.map(fn s ->
-    [log, conts] = String.split(s, " ", trim: true)
+  # |> Enum.slice(6..6)
+  # |> Enum.map(&Task.async(fn ->
+  |> Enum.map(fn g ->
+    [log, conts] = String.split(g, " ", trim: true)
     log = List.duplicate(log, 5) |> Enum.join("?")
 
-    conts = String.split(conts, ",") |> Enum.map(&String.to_integer/1)
+    conts = String.split(conts, ",") |> Enum.map(fn x -> String.to_integer(x) end)
     conts = List.duplicate(conts, 5) |> List.flatten()
-
-    unknown_count = String.graphemes(log) |> Enum.count(fn c -> c == "?" end)
 
     IO.puts("LINE: #{log}  Correct conts is #{inspect(conts)}...")
 
-    chunk_possible_conts = String.graphemes(log)
-      |> Enum.chunk_by(fn c -> c == "." end)
-      |> Enum.reject(fn h -> List.first(h) == "." end)
-      # |> IO.inspect(label: "trychunks")
-      |> Enum.map_reduce(%{}, fn chunk, cache ->
-        unknown_count = Enum.count(chunk, fn c -> c == "?" end)
-        IO.puts("#{Enum.join(chunk)} has #{unknown_count} ?s. Bitwise enumerating for conts...")
-
-        possibilities = if Map.has_key?(cache, chunk) do
-          cache[chunk]
-        else
-          for binval <- 0..Integer.pow(2, unknown_count)-1 do
-            possibility = chunk
-              |> Enum.reduce({0, []}, fn inchar, {unknown_index, outstr} ->
-                if inchar == "?" do
-                  is_one = ((binval >>> unknown_index) &&& 1) == 1
-                  outchar = if is_one, do: "#", else: "."
-                  {unknown_index + 1, outstr ++ [outchar]}
-                else
-                  {unknown_index, outstr ++ [inchar]}
-                end
-              end)
-              |> elem(1)
-
-            Stream.chunk_by(possibility, &(&1))
-              |> Stream.map(fn chunk ->
-                if List.first(chunk) == "#", do: length(chunk), else: nil
-              end)
-              |> Stream.reject(&is_nil/1)
-              |> Enum.to_list()
-          end
-        end
-
-        {possibilities, Map.put(cache, chunk, possibilities)}
-      end)
-      |> elem(0)
-
-    IO.inspect(Enum.map(chunk_possible_conts, fn c -> length(c) end), label: "num of possible conts per chunk")
-
-    count = Rec.count_conts(chunk_possible_conts, conts)
+    count = Rec.count_conts(0, String.graphemes(log), conts)
     IO.inspect(count, label: "final count")
 
-    0
+    count
   end)
-  # |> IO.inspect(label: "arrangements array")
-  # |> Enum.sum()
-  # |> IO.inspect(label: "sum")
+  # |> Enum.map(fn t -> Task.await(t, :infinity) end)
+  |> IO.inspect(label: "arrangements array")
+  |> Enum.sum()
+  |> IO.inspect(label: "sum")
 
 
 IEx.pry()
