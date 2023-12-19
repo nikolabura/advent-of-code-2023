@@ -38,7 +38,7 @@ out =
   contents
   |> String.split("\n\n", trim: true)
   |> Enum.map(fn x -> String.split(x, "\n", trim: true) end)
-  |> Enum.take(1)
+  # |> Enum.take(1)
   |> Enum.map(fn pattern ->
     IO.puts("Pattern:")
     grid =
@@ -53,20 +53,23 @@ out =
     num_rows = Enum.count(grid)
     num_cols = Enum.count(grid[0])
 
-    # vert_mirrors = for i <- 0..num_cols-2 do
-    #   # Advent.print2d(grid,[{0, i}, {0, i+1}])
-    #   col_indices =
-    #     0..num_cols
-    #     |> Enum.map(fn j -> {i-j, i+1+j} end)
-    #     |> Enum.reject(fn {a, b} -> a < 0 or b > num_cols - 1 end)
-    #   is_mirror = for {col1, col2} <- col_indices do
-    #     col1 = Enum.map(0..num_rows-1, fn row -> grid[row][col1] end)
-    #     col2 = Enum.map(0..num_rows-1, fn row -> grid[row][col2] end)
-    #     col1 == col2
-    #   end |> Enum.all?()
-    #   IO.puts("vertical mirror on #{i}|#{i+1}? #{is_mirror}")
-    #   {i+1, is_mirror}
-    # end
+    vert_mirrors = for i <- 0..num_cols-2 do
+      # Advent.print2d(grid,[{0, i}, {0, i+1}])
+      col_indices =
+        0..num_cols
+        |> Enum.map(fn j -> {i-j, i+1+j} end)
+        |> Enum.reject(fn {a, b} -> a < 0 or b > num_cols - 1 end)
+      mismatches = for {col1, col2} <- col_indices do
+        a = Enum.map(0..num_rows-1, fn row -> grid[row][col1] end)
+        b = Enum.map(0..num_rows-1, fn row -> grid[row][col2] end)
+        Enum.zip(a, b)
+          |> Enum.map(fn {a, b} -> a != b end)
+          |> Enum.count(fn x -> x end)
+      end |> Enum.sum()
+      is_mirror = mismatches == 1
+      IO.puts("vertical mirror on #{i}|#{i+1}? #{is_mirror}")
+      {i+1, is_mirror}
+    end
 
     hori_mirrors = for i <- 0..num_rows-2 do
       # Advent.print2d(grid,[{i, 0}, {i+1, 0}])
@@ -74,17 +77,19 @@ out =
         0..num_rows
         |> Enum.map(fn j -> {i-j, i+1+j} end)
         |> Enum.reject(fn {a, b} -> a < 0 or b > num_rows - 1 end)
-      is_mirror = for {row1, row2} <- row_indices do
-        row1 = Enum.map(0..num_cols-1, fn col -> grid[row1][col] end)
-        row2 = Enum.map(0..num_cols-1, fn col -> grid[row2][col] end)
-        row1 == row2
-      end |> Enum.all?()
+      mismatches = for {row1, row2} <- row_indices do
+        a = Enum.map(0..num_cols-1, fn col -> grid[row1][col] end)
+        b = Enum.map(0..num_cols-1, fn col -> grid[row2][col] end)
+        Enum.zip(a, b)
+          |> Enum.map(fn {a, b} -> a != b end)
+          |> Enum.count(fn x -> x end)
+      end |> Enum.sum()
+      is_mirror = mismatches == 1
       IO.puts("horizontal mirror on #{i}|#{i+1}? #{is_mirror}")
       {100*(i+1), is_mirror}
     end
 
-    # [{out, _}] = vert_mirrors ++ hori_mirrors
-    [{out, _}] = [] ++ hori_mirrors
+    [{out, _}] = vert_mirrors ++ hori_mirrors
       |> Enum.reject(fn {_, x} -> x == false end)
     out
   end)
