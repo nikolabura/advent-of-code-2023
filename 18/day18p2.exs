@@ -37,6 +37,7 @@ end
 plan =
   contents
   |> String.split("\n", trim: true)
+
   |> Enum.map(fn x ->
     [_, _, x] = String.split(x, " ")
     dir = case String.at(x, -2) do
@@ -48,7 +49,14 @@ plan =
     num = String.to_integer(String.slice(x, 2, 5), 16)
     {dir, num}
   end)
-  # |> IO.inspect()
+
+  # |> Enum.map(fn x -> [a, b, _] = String.split(x, " "); {a, String.to_integer(b)} end)
+
+  # |> IO.inspect(label: "plan")
+
+
+boundary = Enum.map(plan, fn {_, num} -> num end) |> Enum.sum() |> IO.inspect(label: "boundary")
+
 
 {coords, _} = Enum.map_reduce(plan, {0, 0}, fn {dig_dir, dig_num}, cur_pos ->
   {cur_r, cur_c} = cur_pos
@@ -66,12 +74,19 @@ IO.inspect(coords, label: "coordinates")
 
 area = Enum.chunk_every(coords, 2, 1, :discard)
 |> Enum.map(fn [{x1, y1}, {x2, y2}] ->
-  (y1 + y2) * (x1 - x2)
+  s = (y1 + y2) * (x1 - x2)
+  # IO.puts("(#{x1}, #{y1}) (#{x2}, #{y2}) #{s}")
+  s
 end)
 |> Enum.sum()
 
-IO.inspect(Integer.floor_div(abs(area), 2), label: "area")
+area = Integer.floor_div(abs(area), 2)
+IO.inspect(area, label: "area")
 
+interior = area - Integer.floor_div(boundary, 2) + 1
+IO.inspect(interior, label: "interior")
+
+IO.inspect(boundary + interior, label: "final")
 
 
 IEx.pry()
